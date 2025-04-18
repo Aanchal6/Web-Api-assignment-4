@@ -155,7 +155,12 @@ router.get('/movies/:id', function(req, res) {
 
 
 app.use('/', router);
-app.listen(process.env.PORT || 8080);
+// app.listen(process.env.PORT || 8080);
+const port = process.env.PORT || 8080;
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
+});
+
 module.exports = app; // for testing only
 
 
