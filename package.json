@@ -4,6 +4,7 @@
   "description": "Web API 3916 Homework 3",
   "main": "server.js",
   "scripts": {
+    "start": "node server.js",
     "test": "mocha --timeout 10000 --exit"
   },
   "repository": {
