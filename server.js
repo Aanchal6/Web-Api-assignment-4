@@ -7,6 +7,7 @@ Description: Web API scaffolding for Movie API
 var express = require('express');
 var bodyParser = require('body-parser');
 var passport = require('passport');
+require('dotenv').config();
 var authController = require('./auth');
 var authJwtController = require('./auth_jwt');
 var jwt = require('jsonwebtoken');
@@ -71,21 +72,87 @@ router.post('/signin', function (req, res) {
 
     User.findOne({ username: userNew.username }).select('name username password').exec(function(err, user) {
         if (err) {
-            res.send(err);
+            return res.status(500).send(err);
+        }
+
+        if (!user) {
+            return res.status(401).send({ success: false, msg: 'User not found.' });
         }
 
         user.comparePassword(userNew.password, function(isMatch) {
             if (isMatch) {
                 var userToken = { id: user.id, username: user.username };
                 var token = jwt.sign(userToken, process.env.SECRET_KEY);
-                res.json ({success: true, token: 'JWT ' + token});
+                res.json({ success: true, token: 'JWT ' + token });
+            } else {
+                res.status(401).send({ success: false, msg: 'Authentication failed.' });
             }
-            else {
-                res.status(401).send({success: false, msg: 'Authentication failed.'});
-            }
-        })
-    })
+        });
+    });
 });
+
+
+router.post('/reviews', authJwtController.isAuthenticated, function(req, res) {
+    if (!req.body.movieId || !req.body.username || !req.body.review || typeof req.body.rating === 'undefined') {
+        return res.status(400).json({ message: 'Missing review fields' });
+    }
+
+    const newReview = new Review({
+        movieId: req.body.movieId,
+        username: req.body.username,
+        review: req.body.review,
+        rating: req.body.rating
+    });
+
+    newReview.save(function(err) {
+        if (err) {
+            res.status(500).json({ message: 'Error saving review', error: err });
+        } else {
+            res.json({ message: 'Review created!' });
+        }
+    });
+});
+
+router.get('/reviews', function(req, res) {
+    Review.find({})
+        .populate('movieId', 'title') // Optional: include movie title
+        .exec(function(err, reviews) {
+            if (err) {
+                res.status(500).json({ message: 'Error fetching reviews', error: err });
+            } else {
+                res.json(reviews);
+            }
+        });
+});
+ 
+router.get('/movies/:id', function(req, res) {
+    const includeReviews = req.query.reviews === 'true';
+
+    if (includeReviews) {
+        Movie.aggregate([
+            { $match: { _id: mongoose.Types.ObjectId(req.params.id) } },
+            {
+                $lookup: {
+                    from: 'reviews',
+                    localField: '_id',
+                    foreignField: 'movieId',
+                    as: 'reviews'
+                }
+            }
+        ]).exec(function(err, result) {
+            if (err) return res.status(500).json(err);
+            res.json(result[0] || {});
+        });
+    } else {
+        Movie.findById(req.params.id, function(err, movie) {
+            if (err) return res.status(500).json(err);
+            res.json(movie);
+        });
+    }
+});
+
+
+
 
 app.use('/', router);
 app.listen(process.env.PORT || 8080);
