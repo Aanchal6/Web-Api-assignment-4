@@ -16,7 +16,7 @@ app.use(express.json());
 //   }
 // };
 
-connectDB();
+// connectDB();
 
 // Routes for movies
 app.get('/movies', async (req, res) => {

@@ -13,8 +13,9 @@ var authJwtController = require('./auth_jwt');
 var jwt = require('jsonwebtoken');
 var cors = require('cors');
 var User = require('./Users');
-var Movie = require('./Movies');
+// var Movie = require('./Movies');
 var Review = require('./Reviews');
+const Movie = require('./models/Movie'); // ← this gives an object, not a constructor
 
 var app = express();
 app.use(cors());
@@ -67,14 +68,25 @@ router.post('/signup', function(req, res) {
 
         user.save(function(err){
             if (err) {
-                if (err.code == 11000)
-                    return res.json({ success: false, message: 'A user with that username already exists.'});
-                else
-                    return res.json(err);
+                console.error("Signup error:", err);
+                if (err.code === 11000) {
+                    return res.status(409).json({
+                        success: false,
+                        message: 'A user with that username already exists.'
+                    });
+                } else {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Signup failed.',
+                        error: err.message,
+                        details: err.errors // Shows which field failed
+                    });
+                }
             }
-
-            res.json({success: true, msg: 'Successfully created new user.'})
+        
+            return res.status(201).json({ success: true, msg: 'Successfully created new user.' });
         });
+        
     }
 });
 
@@ -105,7 +117,7 @@ router.post('/signin', function (req, res) {
 });
 
 
-router.post('/reviews', authJwtController.isAuthenticated, function(req, res) {
+router.post('/reviews', function(req, res) {
     if (!req.body.movieId || !req.body.username || !req.body.review || typeof req.body.rating === 'undefined') {
         return res.status(400).json({ message: 'Missing review fields' });
     }
@@ -136,6 +148,69 @@ router.get('/reviews', function(req, res) {
                 res.json(reviews);
             }
         });
+});
+
+// GET all movies
+router.get('/movies', async (req, res) => {
+  try {
+    const movies = await Movie.find();
+    res.json(movies);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// GET a single movie by title
+router.get('/movies/:title', async (req, res) => {
+  try {
+    const movie = await Movie.findOne({ title: req.params.title });
+    if (!movie) return res.status(404).json({ message: 'Movie not found' });
+    res.json(movie);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// POST a new movie
+router.post('/movies', async (req, res) => {
+  try {
+    const { title, releaseDate, genre, actors } = req.body;
+    if (!title || !releaseDate || !genre || !actors) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    const newMovie = new Movie({ title, releaseDate, genre, actors });
+    await newMovie.save();
+    res.status(201).json(newMovie);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// PUT to update a movie
+router.put('/movies/:title', async (req, res) => {
+  try {
+    const updatedMovie = await Movie.findOneAndUpdate(
+      { title: req.params.title },
+      req.body,
+      { new: true, runValidators: true }
+    );
+    if (!updatedMovie) return res.status(404).json({ message: 'Movie not found' });
+    res.json(updatedMovie);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// DELETE a movie
+router.delete('/movies/:title', async (req, res) => {
+  try {
+    const deletedMovie = await Movie.findOneAndDelete({ title: req.params.title });
+    if (!deletedMovie) return res.status(404).json({ message: 'Movie not found' });
+    res.json({ message: 'Movie deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 });
  
 router.get('/movies/:id', function(req, res) {
@@ -168,12 +243,7 @@ router.get('/movies/:id', function(req, res) {
 
 
 app.use('/', router);
-// app.listen(process.env.PORT || 8080);
-const port = process.env.PORT || 8080;
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
-});
-
+app.listen(process.env.PORT || 8080);
 module.exports = app; // for testing only
 
 
