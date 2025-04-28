@@ -161,7 +161,7 @@ router.get('/movies', async (req, res) => {
 });
 
 // GET a single movie by title
-router.get('/movies/:title', async (req, res) => {
+router.get('/movie/:title', async (req, res) => {
   try {
     const movie = await Movie.findOne({ title: req.params.title });
     if (!movie) return res.status(404).json({ message: 'Movie not found' });
