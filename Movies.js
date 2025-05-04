@@ -41,7 +41,7 @@ app.get('/movies/:title', async (req, res) => {
 app.post('/movies', async (req, res) => {
   try {
     const { title, releaseDate, genre, actors, imageUrl } = req.body;
-    if (!title || !releaseDate || !genre || !actors) {
+    if (!title || !releaseDate || !genre || !actors || !imageUrl) {
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
