@@ -15,6 +15,7 @@ const MovieSchema = new Schema({
       actorName: String,
       characterName: String,
     }],
+    imageUrl: String
   });
   
   module.exports = mongoose.model('Movie', MovieSchema);
