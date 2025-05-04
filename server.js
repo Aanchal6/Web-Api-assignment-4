@@ -174,12 +174,12 @@ router.get('/movie/:title', async (req, res) => {
 // POST a new movie
 router.post('/movies', async (req, res) => {
   try {
-    const { title, releaseDate, genre, actors } = req.body;
-    if (!title || !releaseDate || !genre || !actors) {
+    const { title, releaseDate, genre, actors, imageUrl } = req.body;
+    if (!title || !releaseDate || !genre || !actors || !imageUrl) {
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
-    const newMovie = new Movie({ title, releaseDate, genre, actors });
+    const newMovie = new Movie({ title, releaseDate, genre, actors, imageUrl });
     await newMovie.save();
     res.status(201).json(newMovie);
   } catch (error) {
