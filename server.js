@@ -152,13 +152,38 @@ router.get('/reviews', function(req, res) {
 
 // GET all movies
 router.get('/movies', async (req, res) => {
+  const includeReviews = req.query.reviews === 'true';
+
   try {
-    const movies = await Movie.find();
-    res.json(movies);
+    if (includeReviews) {
+      const moviesWithRatings = await Movie.aggregate([
+        {
+          $lookup: {
+            from: 'reviews',
+            localField: '_id',
+            foreignField: 'movieId',
+            as: 'movieReviews'
+          }
+        },
+        {
+          $addFields: {
+            avgRating: { $avg: '$movieReviews.rating' }
+          }
+        },
+        {
+          $sort: { avgRating: -1 }
+        }
+      ]);
+      res.json(moviesWithRatings);
+    } else {
+      const movies = await Movie.find();
+      res.json(movies);
+    }
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
+
 
 // GET a single movie by title
 router.get('/movie/:title', async (req, res) => {
@@ -214,29 +239,34 @@ router.delete('/movies/:title', async (req, res) => {
 });
  
 router.get('/movies/:id', function(req, res) {
-    const includeReviews = req.query.reviews === 'true';
+  const includeReviews = req.query.reviews === 'true';
 
-    if (includeReviews) {
-        Movie.aggregate([
-            { $match: { _id: mongoose.Types.ObjectId(req.params.id) } },
-            {
-                $lookup: {
-                    from: 'reviews',
-                    localField: '_id',
-                    foreignField: 'movieId',
-                    as: 'reviews'
-                }
-            }
-        ]).exec(function(err, result) {
-            if (err) return res.status(500).json(err);
-            res.json(result[0] || {});
-        });
-    } else {
-        Movie.findById(req.params.id, function(err, movie) {
-            if (err) return res.status(500).json(err);
-            res.json(movie);
-        });
-    }
+  if (includeReviews) {
+      Movie.aggregate([
+          { $match: { _id: mongoose.Types.ObjectId(req.params.id) } },
+          {
+              $lookup: {
+                  from: 'reviews',
+                  localField: '_id',
+                  foreignField: 'movieId',
+                  as: 'movieReviews'
+              }
+          },
+          {
+              $addFields: {
+                  avgRating: { $avg: '$movieReviews.rating' }
+              }
+          }
+      ]).exec(function(err, result) {
+          if (err) return res.status(500).json(err);
+          res.json(result[0] || {});
+      });
+  } else {
+      Movie.findById(req.params.id, function(err, movie) {
+          if (err) return res.status(500).json(err);
+          res.json(movie);
+      });
+  }
 });
 
 
